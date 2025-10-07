@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>短剧播放</title>
+<link rel="stylesheet" href="style.css">
+<script defer src="app.js"></script>
+</head>
+<body>
+<header>
+  <button onclick="location.href='detail.html'">← 剧集</button>
+  <h2 id="title">播放中</h2>
+  <button onclick="toggleTheme()">🌗</button>
+</header>
+
+<main style="padding:10px;">
+  <video id="player" controls autoplay></video>
+  <div style="margin-top:10px; display:flex; justify-content:space-between;">
+    <button id="prevBtn">上一集</button>
+    <button id="nextBtn">下一集</button>
+  </div>
+</main>
+
+<script>
+const book = getCurrentBook();
+const current = JSON.parse(localStorage.getItem('current_video') || "null");
+if (!book || !current) {
+  document.body.innerHTML = '<p>未选择剧集</p>';
+} else {
+  document.getElementById('title').textContent = current.title;
+  loadVideo(book.book_id, current.video_id);
+}
+
+async function loadVideo(book_id, video_id) {
+  const data = await fetchJSON(`${API_BASE}&book_id=${book_id}&video_id=${video_id}`);
+  if (data.code === 200) {
+    const v = document.getElementById('player');
+    v.src = data.data.url;
+    saveHistory(book_id, video_id, data.data.title);
+  }
+}
+
+// 上一集 / 下一集
+document.getElementById('prevBtn').onclick = async () => changeEpisode(-1);
+document.getElementById('nextBtn').onclick = async () => changeEpisode(1);
+
+async function changeEpisode(offset) {
+  const list = await fetchJSON(`${API_BASE}&book_id=${book.book_id}`);
+  const idx = list.data.findIndex(e => e.video_id == current.video_id);
+  const next = list.data[idx + offset];
+  if (next) {
+    localStorage.setItem('current_video', JSON.stringify(next));
+    location.reload();
+  } else {
+    alert('没有更多剧集了');
+  }
+}
+</script>
+</body>
+</html>
