@@ -1,5 +1,5 @@
 // 公共逻辑：API、主题、localStorage 辅助函数
-const API_BASE = "https://sdkapi.hhlqilongzhu.cn/api/hema_duanju/?key=Dragon8F5AA09B61EAC9780BC7C2BBF1972680";
+const API_BASE = "https://api.cenguigui.cn/api/duanju/hema.php";
 
 function toggleTheme() {
   const isDark = document.body.classList.toggle('dark');
