@@ -53,7 +53,7 @@ document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 
   // 加载剧集列表
   try {
-    const data = await fetchJSON(`${API_BASE}&book_id=${book.book_id}`);
+    const data = await fetchJSON(`${API_BASE}?book_id=${book.book_id}`);
     const epList = document.getElementById('episodes');
     epList.innerHTML = '';
     if (!data || data.code !== 200 || !Array.isArray(data.data) || data.data.length === 0) {
