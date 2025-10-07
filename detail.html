@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>短剧剧集</title>
+<link rel="stylesheet" href="style.css">
+<script defer src="app.js"></script>
+</head>
+<body>
+<header>
+  <button onclick="location.href='index.html'">← 返回</button>
+  <h2>剧集列表</h2>
+  <button onclick="toggleTheme()">🌗</button>
+</header>
+
+<main style="padding:10px;">
+  <div id="info"></div>
+  <div class="video-list" id="episodes"></div>
+</main>
+
+<script>
+const book = getCurrentBook();
+if (!book) {
+  document.body.innerHTML = '<p>未选择短剧</p>';
+} else {
+  document.getElementById('info').innerHTML = `
+    <div class="card">
+      <img src="${book.cover}">
+      <div>
+        <h3>${book.title}</h3>
+        <p>${book.intro.slice(0, 50)}...</p>
+      </div>
+    </div>`;
+  loadEpisodes(book.book_id);
+}
+
+async function loadEpisodes(book_id) {
+  const data = await fetchJSON(`${API_BASE}&book_id=${book_id}`);
+  const epList = document.getElementById('episodes');
+  epList.innerHTML = '';
+  if (data.code === 200) {
+    data.data.forEach(ep => {
+      const btn = document.createElement('button');
+      btn.textContent = ep.title;
+      btn.onclick = () => {
+        localStorage.setItem('current_video', JSON.stringify(ep));
+        location.href = 'player.html';
+      };
+      epList.appendChild(btn);
+    });
+  }
+}
+</script>
+</body>
+</html>
