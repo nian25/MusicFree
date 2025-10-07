@@ -1,59 +1,93 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>短剧搜索</title>
-<link rel="stylesheet" href="style.css">
-<script defer src="app.js"></script>
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <header>
   <h2>短剧搜索</h2>
-  <button onclick="toggleTheme()">🌗</button>
+  <div>
+    <button id="themeToggle">🌗</button>
+  </div>
 </header>
 
-<main style="padding:10px;">
-  <input id="searchInput" placeholder="输入短剧名称搜索..." />
+<main>
+  <div class="search-row">
+    <input id="searchInput" placeholder="输入短剧名称，例如：繁花落尽又天明" />
+    <button id="searchBtn">搜索</button>
+  </div>
+
   <div id="results"></div>
 </main>
 
+<!-- 公共脚本必须先加载 -->
+<script src="app.js"></script>
+
 <script>
+/*
+ 修复点：
+ 1. 增加搜索按钮
+ 2. 支持回车触发
+ 3. 确保 app.js 先加载（上面），避免函数未定义问题
+*/
+const themeToggle = document.getElementById('themeToggle');
+themeToggle.addEventListener('click', toggleTheme);
+
 const input = document.getElementById('searchInput');
+const btn = document.getElementById('searchBtn');
 const results = document.getElementById('results');
 
-input.addEventListener('change', async () => {
+btn.addEventListener('click', doSearch);
+input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+
+async function doSearch() {
   const name = input.value.trim();
-  if (!name) return;
-  const data = await fetchJSON(`${API_BASE}&name=${encodeURIComponent(name)}`);
   results.innerHTML = '';
-  if (data.code !== 200) {
-    results.textContent = '未找到短剧';
+  if (!name) {
+    results.innerHTML = '<p class="small-muted">请输入搜索关键词</p>';
     return;
   }
-  data.data.forEach(book => {
-    const div = document.createElement('div');
-    div.className = 'card';
-    div.innerHTML = `
-      <img src="${book.cover}">
-      <div>
-        <h3>${book.title}</h3>
-        <p>${book.intro.slice(0, 40)}...</p>
-      </div>`;
-    div.onclick = () => {
-      saveCurrentBook(book);
-      location.href = 'detail.html';
-    };
-    results.appendChild(div);
-  });
-});
+  results.innerHTML = '<p class="small-muted">搜索中…</p>';
+  try {
+    const data = await fetchJSON(`${API_BASE}&name=${encodeURIComponent(name)}`);
+    if (!data || data.code !== 200 || !Array.isArray(data.data) || data.data.length === 0) {
+      results.innerHTML = '<p class="small-muted">未找到相关短剧。</p>';
+      return;
+    }
+    results.innerHTML = '';
+    data.data.forEach(book => {
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.innerHTML = `
+        <img src="${book.cover}" alt="封面" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;200&quot; height=&quot;267&quot;></svg>'" />
+        <div>
+          <h3>${book.title}</h3>
+          <p>${(book.intro || '').slice(0, 80)}${(book.intro||'').length>80?'...':''}</p>
+        </div>`;
+      div.addEventListener('click', () => {
+        // 保存当前剧到 localStorage，然后跳转到详情页
+        saveCurrentBook(book);
+        // 清除 current_video（避免旧的 current_video 导致混淆）
+        localStorage.removeItem('current_video');
+        location.href = 'detail.html';
+      });
+      results.appendChild(div);
+    });
+  } catch (err) {
+    results.innerHTML = `<p class="small-muted">请求失败：${err.message}</p>`;
+  }
+}
 
-// 如果有播放记录
+// 显示继续播放（如果有）
 const last = getHistory();
 if (last) {
-  const link = document.createElement('div');
-  link.innerHTML = `<button onclick="location.href='player.html'">继续播放：${last.title}</button>`;
-  results.prepend(link);
+  const box = document.createElement('div');
+  box.style.margin = '10px';
+  box.innerHTML = `<button style="width:100%" onclick="location.href='player.html'">继续播放：${last.title}</button>`;
+  results.prepend(box);
 }
 </script>
 </body>
