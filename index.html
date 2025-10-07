@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>短剧搜索</title>
+<link rel="stylesheet" href="style.css">
+<script defer src="app.js"></script>
+</head>
+<body>
+<header>
+  <h2>短剧搜索</h2>
+  <button onclick="toggleTheme()">🌗</button>
+</header>
+
+<main style="padding:10px;">
+  <input id="searchInput" placeholder="输入短剧名称搜索..." />
+  <div id="results"></div>
+</main>
+
+<script>
+const input = document.getElementById('searchInput');
+const results = document.getElementById('results');
+
+input.addEventListener('change', async () => {
+  const name = input.value.trim();
+  if (!name) return;
+  const data = await fetchJSON(`${API_BASE}&name=${encodeURIComponent(name)}`);
+  results.innerHTML = '';
+  if (data.code !== 200) {
+    results.textContent = '未找到短剧';
+    return;
+  }
+  data.data.forEach(book => {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = `
+      <img src="${book.cover}">
+      <div>
+        <h3>${book.title}</h3>
+        <p>${book.intro.slice(0, 40)}...</p>
+      </div>`;
+    div.onclick = () => {
+      saveCurrentBook(book);
+      location.href = 'detail.html';
+    };
+    results.appendChild(div);
+  });
+});
+
+// 如果有播放记录
+const last = getHistory();
+if (last) {
+  const link = document.createElement('div');
+  link.innerHTML = `<button onclick="location.href='player.html'">继续播放：${last.title}</button>`;
+  results.prepend(link);
+}
+</script>
+</body>
+</html>
