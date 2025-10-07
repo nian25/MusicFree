@@ -1,59 +1,119 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>短剧播放</title>
-<link rel="stylesheet" href="style.css">
-<script defer src="app.js"></script>
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <header>
   <button onclick="location.href='detail.html'">← 剧集</button>
   <h2 id="title">播放中</h2>
-  <button onclick="toggleTheme()">🌗</button>
+  <button id="themeToggle">🌗</button>
 </header>
 
-<main style="padding:10px;">
-  <video id="player" controls autoplay></video>
-  <div style="margin-top:10px; display:flex; justify-content:space-between;">
-    <button id="prevBtn">上一集</button>
-    <button id="nextBtn">下一集</button>
+<main>
+  <div id="player-container">
+    <video id="player" controls playsinline webkit-playsinline></video>
   </div>
+
+  <div class="controls-row">
+    <button id="prevBtn" class="link-btn">上一集</button>
+    <button id="nextBtn" class="link-btn">下一集</button>
+  </div>
+
+  <div id="status" class="small-muted"></div>
 </main>
 
+<script src="app.js"></script>
+
 <script>
-const book = getCurrentBook();
-const current = JSON.parse(localStorage.getItem('current_video') || "null");
-if (!book || !current) {
-  document.body.innerHTML = '<p>未选择剧集</p>';
-} else {
-  document.getElementById('title').textContent = current.title;
-  loadVideo(book.book_id, current.video_id);
-}
+document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+let book = getCurrentBook();
+let current = getCurrentVideo();
+const status = document.getElementById('status');
+const player = document.getElementById('player');
+let episodesCache = null;
+
+(async function initPlayer(){
+  // 如果没带 current（例如通过“继续播放”直接到 player），尝试使用 last_play
+  if (!current) {
+    const last = getHistory();
+    if (last && last.book_id) {
+      // 如果没有 current_book，则用 last 回推一个最小 book 对象
+      if (!book) {
+        book = { book_id: last.book_id, title: last.title || '上次播放' };
+        saveCurrentBook(book);
+      }
+      current = { video_id: last.video_id, title: last.title };
+      saveCurrentVideo(current);
+    }
+  }
+
+  if (!book || !current) {
+    document.body.innerHTML = '<p class="small-muted" style="padding:12px">未找到要播放的剧或集，请返回搜索页选择。</p>';
+    return;
+  }
+
+  document.getElementById('title').textContent = current.title || '播放中';
+  status.textContent = '正在获取播放地址…';
+
+  try {
+    await loadVideo(book.book_id, current.video_id);
+    // 同步保存历史
+    saveHistory(book.book_id, current.video_id, current.title || document.getElementById('title').textContent);
+    // 预加载剧集列表用于上一/下一集切换
+    const listResp = await fetchJSON(`${API_BASE}&book_id=${book.book_id}`);
+    if (listResp && listResp.code === 200 && Array.isArray(listResp.data)) {
+      episodesCache = listResp.data;
+    }
+  } catch (e) {
+    status.textContent = '播放失败：' + e.message;
+  }
+})();
 
 async function loadVideo(book_id, video_id) {
-  const data = await fetchJSON(`${API_BASE}&book_id=${book_id}&video_id=${video_id}`);
-  if (data.code === 200) {
-    const v = document.getElementById('player');
-    v.src = data.data.url;
-    saveHistory(book_id, video_id, data.data.title);
+  const resp = await fetchJSON(`${API_BASE}&book_id=${book_id}&video_id=${video_id}`);
+  if (!resp || resp.code !== 200 || !resp.data || !resp.data.url) {
+    throw new Error('未获取到播放地址');
   }
+  player.src = resp.data.url;
+  // 更新标题（接口返回的 title 更准确）
+  if (resp.data.title) {
+    document.getElementById('title').textContent = resp.data.title;
+    current.title = resp.data.title;
+    saveCurrentVideo(current);
+    saveHistory(book_id, video_id, resp.data.title);
+  }
+  status.textContent = '';
 }
 
-// 上一集 / 下一集
-document.getElementById('prevBtn').onclick = async () => changeEpisode(-1);
-document.getElementById('nextBtn').onclick = async () => changeEpisode(1);
+document.getElementById('prevBtn').addEventListener('click', () => changeEpisode(-1));
+document.getElementById('nextBtn').addEventListener('click', () => changeEpisode(1));
 
 async function changeEpisode(offset) {
-  const list = await fetchJSON(`${API_BASE}&book_id=${book.book_id}`);
-  const idx = list.data.findIndex(e => e.video_id == current.video_id);
-  const next = list.data[idx + offset];
-  if (next) {
-    localStorage.setItem('current_video', JSON.stringify(next));
-    location.reload();
-  } else {
-    alert('没有更多剧集了');
+  try {
+    if (!episodesCache) {
+      const listResp = await fetchJSON(`${API_BASE}&book_id=${book.book_id}`);
+      if (listResp && listResp.code === 200) episodesCache = listResp.data;
+      else { alert('无法加载剧集列表'); return; }
+    }
+    const idx = episodesCache.findIndex(e => String(e.video_id) === String(current.video_id));
+    const next = episodesCache[idx + offset];
+    if (!next) {
+      alert('没有更多剧集了');
+      return;
+    }
+    current = next;
+    saveCurrentVideo(current);
+    // 直接加载新的集
+    await loadVideo(book.book_id, current.video_id);
+    // 保存历史
+    saveHistory(book.book_id, current.video_id, current.title || document.getElementById('title').textContent);
+  } catch (e) {
+    alert('切换失败：' + e.message);
   }
 }
 </script>
