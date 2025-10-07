@@ -32,7 +32,7 @@ let episodesCache = null;
     await loadVideo(current.video_id);
     saveHistory(book.book_id, current.video_id, current.title || document.getElementById('title').textContent);
 
-    const listResp = await fetchJSON(`${API_BASE}&book_id=${book.book_id}`);
+    const listResp = await fetchJSON(`${API_BASE}?book_id=${book.book_id}`);
     if (listResp && listResp.code === 200 && Array.isArray(listResp.data)) {
       episodesCache = listResp.data;
     }
@@ -42,7 +42,7 @@ let episodesCache = null;
 })();
 
 async function loadVideo(video_id) {
-  const resp = await fetchJSON(`${API_BASE}&video_id=${video_id}`);
+  const resp = await fetchJSON(`${API_BASE}?video_id=${video_id}`);
   if (!resp || resp.code !== 200 || !resp.data || !resp.data.url) {
     throw new Error('未获取到播放地址');
   }
@@ -63,7 +63,7 @@ document.getElementById('nextBtn').addEventListener('click', () => changeEpisode
 async function changeEpisode(offset) {
   try {
     if (!episodesCache) {
-      const listResp = await fetchJSON(`${API_BASE}&book_id=${book.book_id}`);
+      const listResp = await fetchJSON(`${API_BASE}?book_id=${book.book_id}`);
       if (listResp && listResp.code === 200) episodesCache = listResp.data;
       else { alert('无法加载剧集列表'); return; }
     }
